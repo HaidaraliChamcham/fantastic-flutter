@@ -1,4 +1,4 @@
-# fasenate
+# fantastic
 
 A new Flutter application.
 
