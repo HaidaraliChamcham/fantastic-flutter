@@ -29,7 +29,7 @@ class _FollowsTimelineState extends State<FollowsTimeline> {
         .map((document) => Post.fromDocument(document))
         .toList();
 
-    setState(() {
+    if(mounted)setState(() {
       this.posts = allPosts;
     });
   }

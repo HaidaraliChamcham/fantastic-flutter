@@ -125,11 +125,24 @@ class _PostState extends State<Post> {
           children: <Widget>[
             Container(
               child: ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(
-                      'https://pbs.twimg.com/profile_images/954970943255818240/ycI3A-DK_400x400.jpg'), //backgroundImage: CachedNetworkImageProvider(user.url),
-                  backgroundColor: Colors.grey,
+                leading: CachedNetworkImage(
+              imageUrl: user.url == null ?'' : user.url,
+              imageBuilder: (context, imageProvider) => Container(
+                height: 45.0,
+                width: 45.0,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      fit: BoxFit.cover,
+                      image: imageProvider,
+                    ),
+                     border: Border.all(
+                        color: Colors.grey, width: 2.5)
                 ),
+              ),
+              // placeholder: (context, url) => CircleAvatar(backgroundImage: AssetImage('assets/sharukhKhan.jpg'),),
+              errorWidget: (context, url, error) => Icon(Icons.account_circle,size: 45,color: Colors.grey,),
+            ),
                 title: GestureDetector(
                   onTap: () => displayUserProfile(context, userProfileId: user.id),
                   child: Text(

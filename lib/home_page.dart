@@ -23,14 +23,15 @@ final friendTimelineReference = Firestore.instance.collection('friendTimeline');
 final allPostTimelineReference = Firestore.instance.collection('allPostTimeline');
 
 final StorageReference storageReference = FirebaseStorage.instance.ref().child('Posts Picture');
+final StorageReference profileStorageReference = FirebaseStorage.instance.ref().child('Profile Picture');
+final StorageReference coverImageStorageReference = FirebaseStorage.instance.ref().child('Cover Image');
 final DateTime timestamp = DateTime.now();
  User currentUser;
-
- 
 class HomePage extends StatefulWidget {
+  final String currentUserId;
   final BaseAuth auth;
   final VoidCallback onSignedOut;
- HomePage({this.auth,this.onSignedOut});
+ HomePage({Key key,this.auth,this.onSignedOut, this.currentUserId});
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -43,7 +44,7 @@ class _HomePageState extends State<HomePage> {
   saveUserInfoToFireStore() async{
     String userId = await widget.auth.currentUser();
        DocumentSnapshot documentSnapshot = await usersReference.document(userId).get();
-           setState(() {
+           if(mounted)setState(() {
              currentUser = User.fromDocument(documentSnapshot);
            });
   }
@@ -107,7 +108,7 @@ bool get _fecthingData => currentUser == null;
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
         currentIndex: getPageIndex,
-        selectedItemColor: Colors.purpleAccent[400],
+        selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.grey,
         onTap: onTabChangePage,
         items:[

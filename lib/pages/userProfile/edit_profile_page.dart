@@ -1,100 +1,75 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fasenate/widgets/header_widget.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../auth/login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../main.dart';
+import '../../widgets/header_widget.dart';
 import '../../home_page.dart';
-import '../../models/user.dart';
 import '../../utils/lowercase_formater.dart';
 import '../../widgets/progress_indicator.dart';
 
-class EditProfilePage extends StatefulWidget {
-  final String currentOnlineUserId;
-  EditProfilePage({this.currentOnlineUserId});
-
+class SettingScreen extends StatefulWidget {
   @override
-  _EditProfilePageState createState() => _EditProfilePageState();
+  _SettingScreenState createState() => _SettingScreenState();
 }
 
-class _EditProfilePageState extends State<EditProfilePage> {
-  TextEditingController profileNameTextEditingController =
-      TextEditingController();
-  TextEditingController usernameTextEditingController = TextEditingController();
-  TextEditingController bioTextEditingController = TextEditingController();
+class _SettingScreenState extends State<SettingScreen> {
+  TextEditingController profileNameTextEditingController;
+  TextEditingController usernameTextEditingController;
+  TextEditingController bioTextEditingController;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final _scaffoldGlobalKey = GlobalKey<ScaffoldState>();
-  bool loading = false;
-  User user;
+  SharedPreferences preferences;
+  String id = '';
+  String profileName = '';
+  String username = '';
+  String url = '';
+  String coverImage = '';
+  String bio = '';
   bool _bioValid = true;
   bool _profileNameValid = true;
   bool _usernameValid = true;
   File imageFileAvatar;
   bool isLoading = false;
-  FlutterToast flutterToast;
-
+  final FocusNode profileNameFocusNode = FocusNode();
+  final FocusNode usernameFocusNode = FocusNode();
+  final FocusNode bioFocusNode = FocusNode();
+  @override
   void initState() {
     super.initState();
-    getAndDisplayUserInformation();
-    flutterToast = FlutterToast(context);
+    readDataFromLocal();
   }
 
-  @override
   void dispose() {
+    super.dispose();
+    profileNameFocusNode.dispose();
+    usernameFocusNode.dispose();
+    bioFocusNode.dispose();
     profileNameTextEditingController.dispose();
     usernameTextEditingController.dispose();
     bioTextEditingController.dispose();
-    super.dispose();
   }
 
-  getAndDisplayUserInformation() async {
-    setState(() {
-      loading = true;
-    });
-    DocumentSnapshot documentSnapshot =
-        await usersReference.document(widget.currentOnlineUserId).get();
-    user = User.fromDocument(documentSnapshot);
-    usernameTextEditingController.text = user.username;
-    profileNameTextEditingController.text = user.profileName;
-    bioTextEditingController.text = user.bio;
+  readDataFromLocal() async {
+    preferences = await SharedPreferences.getInstance();
+    id = preferences.getString('id');
+    profileName = preferences.getString('profileName');
+    username = preferences.getString('username');
+    url = preferences.getString('url');
+    coverImage = preferences.getString('coverImage');
+    bio = preferences.getString('bio');
 
-    setState(() {
-      loading = false;
-    });
-  }
-
-  updateUserData() {
-    setState(() {
-      usernameTextEditingController.text.trim().length < 3 ||
-              usernameTextEditingController.text.isEmpty
-          ? _profileNameValid = false
-          : _profileNameValid = true;
-      profileNameTextEditingController.text.trim().length < 3 ||
-              profileNameTextEditingController.text.isEmpty
-          ? _usernameValid = false
-          : _usernameValid = true;
-      bioTextEditingController.text.trim().length > 111
-          ? _bioValid = false
-          : _bioValid = true;
-    });
-    if (_bioValid && _profileNameValid && _usernameValid) {
-      usersReference.document(widget.currentOnlineUserId).updateData({
-        'username': usernameTextEditingController.text,
-        'profileName': profileNameTextEditingController.text,
-        'bio': bioTextEditingController.text.trim(),
-      });
-      SnackBar successSnackBar = SnackBar(
-        content: Text('Profile has been updated successfully. '),
-      );
-      _scaffoldGlobalKey.currentState.showSnackBar(successSnackBar);
-    }
+    profileNameTextEditingController = TextEditingController(text: profileName);
+    usernameTextEditingController = TextEditingController(text: username);
+    bioTextEditingController = TextEditingController(text: bio);
+    setState(() {});
   }
 
   Future getImage() async {
@@ -110,307 +85,322 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future uploadImageToFirestoreAndStorage() async {
-    String mFileName = user.id;
-    final StorageReference profile = FirebaseStorage.instance.ref().child(mFileName);
+    String mFileName = id;
     StorageUploadTask storageUploadTask =
-        storageReference.putFile(imageFileAvatar);
+        profileStorageReference.child(mFileName).putFile(imageFileAvatar);
     StorageTaskSnapshot storageTaskSnapshot;
     storageUploadTask.onComplete.then((value) {
       if (value.error == null) {
         storageTaskSnapshot = value;
         storageTaskSnapshot.ref.getDownloadURL().then((newImageDownloadUrl) {
-          user.url = newImageDownloadUrl;
-           usersReference.document(widget.currentOnlineUserId).updateData({
-            'url': user.url,
+          url = newImageDownloadUrl;
+          usersReference.document(id).updateData({
+            'url': url,
+            'coverImage': coverImage,
+            'username': username,
+            'profileName': profileName,
+            'bio': bio,
+          }).then((data) async {
+            await preferences.setString('url', url);
+            setState(() {
+              isLoading = false;
+            });
+            Fluttertoast.showToast(msg: 'Updated Successfully.');
           });
-        },
-            onError: (errorMsg) {
+        }, onError: (errorMsg) {
           setState(() {
             isLoading = false;
           });
-          flutterToast.showToast(child: Text('Error occured in getting Profile Download Url'));
+          Fluttertoast.showToast(msg: 'Error Occured in getting Download Url.');
         });
       }
     }, onError: (errorMsg) {
       setState(() {
         isLoading = false;
       });
-      flutterToast.showToast(child: Text(errorMsg.toString()));
-      // Fluttertoast.showToast(msg: errorMsg.toString());
+      Fluttertoast.showToast(msg: errorMsg.toString());
     });
+  }
+
+  void updateUserData() {
+    setState(() {
+      profileNameTextEditingController.text.trim().length < 3 ||
+              profileNameTextEditingController.text.isEmpty
+          ? _profileNameValid = false
+          : _profileNameValid = true;
+      usernameTextEditingController.text.trim().length < 3 ||
+              usernameTextEditingController.text.isEmpty
+          ? _usernameValid = false
+          : _usernameValid = true;
+
+      bioTextEditingController.text.trim().length > 111
+          ? _bioValid = false
+          : _bioValid = true;
+    });
+    profileNameFocusNode.unfocus();
+    usernameFocusNode.unfocus();
+    bioFocusNode.unfocus();
+    setState(() {
+      isLoading = false;
+    });
+
+    if (_bioValid && _profileNameValid && _usernameValid) {
+      usersReference.document(id).updateData({
+        'url': url,
+        'coverImage': coverImage,
+        'username': username,
+        'profileName': profileName,
+        'bio': bio,
+      }).then((data) async {
+        await preferences.setString('url', url);
+        await preferences.setString('coverImage', coverImage);
+        await preferences.setString('username', username);
+        await preferences.setString('profileName', profileName);
+        await preferences.setString('bio', bio);
+        setState(() {
+          isLoading = false;
+        });
+        Fluttertoast.showToast(
+          msg: 'Updated Successfully.',
+          backgroundColor: Colors.grey[800],
+        );
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldGlobalKey,
       appBar: header(context, strTitle: 'Edit Profile'),
-      body: loading
-          ? circularProgress()
-          : ListView(
-              children: <Widget>[
-                (imageFileAvatar == null)
-                    ? (user.url != '')
-                        ? Material(
-                            child: CachedNetworkImage(
-                              placeholder: (context, url) => Container(
-                                child: circularProgress(),
+      body: Stack(
+        children: <Widget>[
+          ListView(
+            children: <Widget>[
+              Column(
+                children: <Widget>[
+                  Container(
+                    child: Center(
+                      child: Stack(alignment: Alignment.bottomLeft,
+                        overflow: Overflow.visible,
+                        children: <Widget>[
+                          Stack(
+                            overflow: Overflow.visible,
+                            children: <Widget>[
+                              Container(
+                                child: (imageFileAvatar == null)
+                                    ? (url != '')
+                                        ? Material(
+                                            child: CachedNetworkImage(
+                                              placeholder: (context, url) =>
+                                                  Container(
+                                                      child: circularProgress(),
+                                                      width: 150,
+                                                      height: 150,
+                                                      padding:
+                                                          EdgeInsets.all(20.0)),
+                                              imageUrl: url,
+                                              width: 150,
+                                              height: 150,
+                                              fit: BoxFit.cover,
+                                            ),
+
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(94.0),),
+                                            clipBehavior: Clip.hardEdge,
+                                          )
+                                        : Icon(
+                                            Icons.account_circle,
+                                            size: 200,
+                                            color: Colors.grey,
+                                          )
+                                    : Material(
+                                        child: Image.file(
+                                          imageFileAvatar,
+                                          height: 200,
+                                          width: 200,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
                               ),
-                              imageUrl: user.url,
-                              width: 200,
-                              height: 200,
-                              fit: BoxFit.cover,
-                            ),
-                            borderRadius:
-                                BorderRadius.all(Radius.circular(75.0)),
-                            clipBehavior: Clip.hardEdge,
-                          )
-                        : Icon(
-                            Icons.account_circle,
-                            size: 200,
-                            color: Colors.grey,
-                          )
-                    : Material(
-                        child: Image.file(
-                          imageFileAvatar,
-                          width: 200,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                        borderRadius: BorderRadius.all(Radius.circular(75.0)),
-                        clipBehavior: Clip.hardEdge,
+                              Positioned(
+                                top: 45,
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.camera_alt,
+                                    size: 50,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                  onPressed: getImage,
+                                  padding: EdgeInsets.all(0.0),
+                                  splashColor: Colors.transparent,
+                                  highlightColor: Colors.grey,
+                                  iconSize: 200,
+                                ),
+                              )
+                            ],
+                          ),
+                        ],
                       ),
-                IconButton(
-                  icon: Icon(
-                    Icons.camera_alt,
-                    size: 100,
-                    color: Colors.white54.withOpacity(0.3),
+                    ),
+                    width: double.infinity,
+                    margin: EdgeInsets.all(20.0),
                   ),
-                  onPressed: getImage,
-                  padding: EdgeInsets.all(0.0),
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.grey,
-                  iconSize: 200,
-                ),
-                // Stack(
-                //   overflow: Overflow.visible,
-                //   children: <Widget>[
-                //     Row(
-                //       children: <Widget>[
-                //         Expanded(
-                //           child: Container(
-                //             height: 200.0,
-                //             decoration: BoxDecoration(
-                //               image: DecorationImage(
-                //                 fit: BoxFit.fill,
-                //                 image: NetworkImage(
-                //                     'https://pbs.twimg.com/profile_banners/132385468/1590425639/1500x500'),
-                //               ),
-                //             ),
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //     Positioned(
-                //       top: 130.0,
-                //       child: Container(
-                //         height: 120,
-                //         width: 120,
-                //         decoration: BoxDecoration(
-                //             shape: BoxShape.circle,
-                //             image: DecorationImage(
-                //               fit: BoxFit.cover,
-                //               image: NetworkImage(
-                //                   'https://pbs.twimg.com/profile_images/954970943255818240/ycI3A-DK_400x400.jpg'),
-                //             ),
-                //             border:
-                //                 Border.all(color: Colors.white, width: 5.0)),
-                //       ),
-                //     ),
-                //   ],
-                // ),
-                SizedBox(
-                  height: 10.0,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () => getImage(),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Icon(
-                          Icons.edit,
-                          color: Colors.black54,
-                          size: 20.0,
+                        Padding(
+                          padding: EdgeInsets.all(1.0),
+                          child: isLoading ? circularProgress() : Container(),
                         ),
-                        Text(
-                          'Change cover image',
-                          style: TextStyle(color: Colors.black),
+
+                        // Profile Name Part
+
+                        Padding(
+                          padding: EdgeInsets.only(top: 13),
+                          child: Text(
+                            'Full Name',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        ),
+                        Container(
+                          child: TextField(
+                            style: TextStyle(color: Colors.black),
+                            inputFormatters: [new LowerCaseTextFormatter()],
+                            controller: profileNameTextEditingController,
+                            decoration: InputDecoration(
+                                hintText: 'write your name here...',
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                errorText: _profileNameValid
+                                    ? null
+                                    : 'Profile name is very short'),
+                            onChanged: (value) {
+                              profileName = value.trim();
+                            },
+                            focusNode: profileNameFocusNode,
+                          ),
+                        ),
+
+                        // Username Part is here
+
+                        Padding(
+                          padding: EdgeInsets.only(top: 13),
+                          child: Text(
+                            'Username',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        ),
+                        Container(
+                          child: TextField(
+                            style: TextStyle(color: Colors.black),
+                            inputFormatters: [
+                              new UnderscoreLowerCaseTextFormatter()
+                            ],
+                            controller: usernameTextEditingController,
+                            decoration: InputDecoration(
+                                hintText: 'write username here...',
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                errorText: _usernameValid
+                                    ? null
+                                    : 'Please enter username'),
+                            onChanged: (value) {
+                              username = value.trim();
+                            },
+                            focusNode: usernameFocusNode,
+                          ),
+                        ),
+
+                        // Profile Name Part
+
+                        Padding(
+                          padding: EdgeInsets.only(top: 13),
+                          child: Text(
+                            'Bio',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        ),
+                        Container(
+                          child: TextField(
+                            style: TextStyle(color: Colors.black),
+                            controller: bioTextEditingController,
+                            decoration: InputDecoration(
+                                hintText: 'Write Bio here...',
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                errorText:
+                                    _bioValid ? null : 'Bio is very Long'),
+                            keyboardType: TextInputType.multiline,
+                            maxLines: null,
+                            onChanged: (value) {
+                              bio = value.trim();
+                            },
+                            focusNode: bioFocusNode,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                SizedBox(
-                  height: 20.0,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: GestureDetector(
-                    onTap: () => print('you change profile image'),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: <Widget>[
-                        Icon(
-                          Icons.edit,
-                          color: Colors.black54,
-                          size: 20.0,
-                        ),
-                        Text(
-                          'Change dp',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                      ],
+                  Padding(
+                    padding:
+                        EdgeInsets.only(top: 29.0, left: 50.0, right: 50.0),
+                    child: RaisedButton(
+                      child: Text(
+                        '     Update     ',
+                        style: TextStyle(color: Colors.black, fontSize: 16.0),
+                      ),
+                      onPressed: updateUserData,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    children: <Widget>[
-                      createProfileNameTextFormField(),
-                      createUsernameTextFormField(),
-                      createBioTextFormField()
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 29.0, left: 50.0, right: 50.0),
-                  child: RaisedButton(
-                    child: Text(
-                      '     Update     ',
-                      style: TextStyle(color: Colors.black, fontSize: 16.0),
-                    ),
-                    onPressed: updateUserData,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
+                  Padding(
+                    padding:
+                        EdgeInsets.only(top: 10.0, left: 50.0, right: 50.0),
+                    child: RaisedButton(
+                      color: Colors.red,
+                      child: Text(
+                        '     Sign Out     ',
+                        style: TextStyle(color: Colors.white, fontSize: 14.0),
+                      ),
+                      onPressed: _signOut,
                     ),
                   ),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0, left: 50.0, right: 50.0),
-                  child: RaisedButton(
-                    color: Colors.red,
-                    child: Text(
-                      '     Sign Out     ',
-                      style: TextStyle(color: Colors.white, fontSize: 14.0),
-                    ),
-                    onPressed: _signOut,
-                  ),
-                ),
-              ],
-            ),
+                ],
+              )
+            ],
+          )
+        ],
+      ),
     );
   }
 
- Future<void> _signOut() async {
-     await _auth.signOut();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LoginPage()),
-    );
-  }
-
-  Column createUsernameTextFormField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: EdgeInsets.only(top: 13),
-          child: Text(
-            'Username',
-            style: TextStyle(color: Colors.black54),
-          ),
-        ),
-        TextField(
-          style: TextStyle(color: Colors.black),
-          inputFormatters: [new UnderscoreLowerCaseTextFormatter()],
-          controller: usernameTextEditingController,
-          decoration: InputDecoration(
-              hintText: 'write username here...',
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey),
-              ),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.black),
-              ),
-              hintStyle: TextStyle(color: Colors.grey),
-              errorText: _usernameValid ? null : 'Username is very short'),
-        ),
-      ],
-    );
-  }
-
-  Column createProfileNameTextFormField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: EdgeInsets.only(top: 13),
-          child: Text(
-            'Full Name',
-            style: TextStyle(color: Colors.black54),
-          ),
-        ),
-        TextField(
-          style: TextStyle(color: Colors.black),
-          inputFormatters: [new LowerCaseTextFormatter()],
-          controller: profileNameTextEditingController,
-          decoration: InputDecoration(
-              hintText: 'write profile name here...',
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey),
-              ),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.black),
-              ),
-              hintStyle: TextStyle(color: Colors.grey),
-              errorText:
-                  _profileNameValid ? null : 'Profile name is very short'),
-        ),
-      ],
-    );
-  }
-
-  Column createBioTextFormField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: EdgeInsets.only(top: 13),
-          child: Text(
-            'Bio',
-            style: TextStyle(color: Colors.black54),
-          ),
-        ),
-        TextField(
-          style: TextStyle(color: Colors.black),
-          controller: bioTextEditingController,
-          decoration: InputDecoration(
-              hintText: 'Write Bio here...',
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey),
-              ),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.black),
-              ),
-              hintStyle: TextStyle(color: Colors.grey),
-              errorText: _bioValid ? null : 'Bio is very Long'),
-          keyboardType: TextInputType.multiline,
-          maxLines: null,
-        ),
-      ],
-    );
+  Future<Null> _signOut() async {
+    await _auth.signOut();
+    this.setState(() {
+      isLoading = false;
+    });
+    Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => MyApp()),
+        (Route<dynamic> route) => false);
   }
 }

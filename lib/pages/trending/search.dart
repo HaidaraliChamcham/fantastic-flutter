@@ -131,11 +131,22 @@ class UserResult extends StatelessWidget {
                   displayUserProfile(context, userProfileId: eachUser.id),
               child: ListTile(
                 leading:
-                    // eachUser.url == null
-                    //     ?
-                    CircleAvatar(
-                  backgroundImage: AssetImage("assets/sharukhKhan.jpg"),
+                    CachedNetworkImage(
+              imageUrl: eachUser.url == null ?'' : eachUser.url,
+              imageBuilder: (context, imageProvider) => Container(
+                height: 45.0,
+                width: 45.0,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      fit: BoxFit.cover,
+                      image: imageProvider,
+                    ),
                 ),
+              ),
+              // placeholder: (context, url) => CircleAvatar(backgroundImage: AssetImage('assets/sharukhKhan.jpg'),),
+              errorWidget: (context, url, error) => Icon(Icons.account_circle,size: 45,color: Colors.grey,),
+            ),
                 // : CircleAvatar(
                 //     backgroundColor: Colors.black,
                 //     backgroundImage:

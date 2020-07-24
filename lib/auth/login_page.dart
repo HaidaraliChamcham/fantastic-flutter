@@ -1,8 +1,10 @@
 
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../create_account_page.dart';
 import '../models/user.dart';
 import '../home_page.dart';
@@ -28,10 +30,11 @@ class _LoginPageState extends State<LoginPage>
   String _email;
   String _password;
   FormType _formType = FormType.login;
-  var _isLoading = false;
-  bool isSignIn = false;
+  bool _isLoading = false;
+  bool isLoggedIn = false;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   FirebaseMessaging _firebaseMessaging =FirebaseMessaging();
+  SharedPreferences preferences;
   AnimationController _controller;
   Animation<Offset> _slideAnimation;
   Animation<double> _opacityAnimation;
@@ -39,6 +42,7 @@ class _LoginPageState extends State<LoginPage>
   @override
   void initState() {
     super.initState();
+    // isSignedIn();
     _controller = AnimationController(
       vsync: this,
       duration: Duration(
@@ -61,6 +65,18 @@ class _LoginPageState extends State<LoginPage>
       ),
     );
     // _heightAnimation.addListener(() => setState(() {}));
+  }
+
+Future<void> isSignedIn() async{
+this.setState(() {
+  isLoggedIn = true;
+});
+    preferences = await SharedPreferences.getInstance();
+    dynamic userId = currentUser.id;
+    isLoggedIn = userId;
+    this.setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
@@ -127,6 +143,7 @@ configureRealTimePustNotifications()async{
  }
 
   saveUserInfoToFireStore() async {
+        preferences = await SharedPreferences.getInstance();
     String userId = await widget.auth.currentUser();
 
     final Map<String, dynamic> formData = {
@@ -145,25 +162,55 @@ configureRealTimePustNotifications()async{
         'profileName': formData['profileName'],
         'username': formData['username'],
         'url': '',
+        'coverImage': '',
         'email': _email,
         'bio': " ",
         'timestamp': timestamp,
       });
       await followersReference
-          .document(currentUser.id)
+          .document(userId)
           .collection('userFollowers')
-          .document(currentUser.id)
+          .document(userId)
           .setData({});
       await friendsReference
-          .document(currentUser.id)
+          .document(userId)
           .collection('userFriends')
-          .document(currentUser.id)
+          .document(userId)
           .setData({});
 
       documentSnapshot = await usersReference.document(userId).get();
     }
     currentUser = User.fromDocument(documentSnapshot);
+    await preferences.setString('id', currentUser.id);
+    await preferences.setString('profileName', currentUser.profileName);
+    await preferences.setString('username', currentUser.username);
+    await preferences.setString('url', currentUser.url);
+    await preferences.setString('coverImage', currentUser.coverImage);
+
   }
+
+getUserInfo() async{
+    String userId = await widget.auth.currentUser();
+         preferences = await SharedPreferences.getInstance();
+          DocumentSnapshot documentSnapshot = await usersReference.document(
+          userId,
+        )
+        .get();
+        if(documentSnapshot.exists){
+         final QuerySnapshot resultQuery = await usersReference.where('id', isEqualTo: userId).getDocuments();
+         final List<DocumentSnapshot> docSnapshot = resultQuery.documents;
+
+             currentUser = User.fromDocument(documentSnapshot);
+                await preferences.setString('id',docSnapshot[0]['id'] );
+                await preferences.setString('profileName', docSnapshot[0]['profileName']);
+                await preferences.setString('username',docSnapshot[0]['username']);
+                await preferences.setString('url', docSnapshot[0]['url']);
+                await preferences.setString('coverImage', docSnapshot[0]['coverImage']);
+                await preferences.setString('bio', docSnapshot[0]['bio']);
+        }
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage(currentUserId: userId)));
+}
+
 
   void validateAndSubmit() async {
     if (validateAndSave()) {
@@ -171,26 +218,14 @@ configureRealTimePustNotifications()async{
         if (_formType == FormType.login) {
           String userId =
               await widget.auth.signInWithEmailAndPassword(_email, _password);
-          // AuthResult result = await FirebaseAuth.instance.signInWithEmailAndPassword(email: _email, password: _password);
-          // FirebaseUser user = result.user;
+              await getUserInfo();
+              
           print('Signed in: $userId');
         } else {
           String userId = await widget.auth
               .createUserWithEmailAndPassword(_email, _password);
-          if (userId != null) {
             await saveUserInfoToFireStore();
-            setState(() {
-              isSignIn = true;
-            });
-            configureRealTimePustNotifications();
-          } else {
-            setState(() {
-              isSignIn = false;
-            });
-          }
-
-          // AuthResult result = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: _email, password: _password);
-          // FirebaseUser user = result.user;
+            await configureRealTimePustNotifications();
           print('Registered user: $userId');
         }
         widget.onSignedIn();
@@ -243,140 +278,142 @@ configureRealTimePustNotifications()async{
   Widget build(BuildContext context) {
     final deviceSize = MediaQuery.of(context).size;
     return Scaffold(
-      body: Stack(
+      body: ListView(
         children: <Widget>[
-          SingleChildScrollView(
-            child: Container(
-              height: deviceSize.height,
-              width: deviceSize.width,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  Flexible(
-                    child: Container(
-                      margin: EdgeInsets.only(bottom: 20.0),
-                      padding:
-                          EdgeInsets.symmetric(vertical: 8.0, horizontal: 94),
-                      child: Text(
-                        'Fantastic',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 35.0,
-                          fontWeight: FontWeight.normal,
+          Stack(
+            children: <Widget>[
+              Container(
+                height: deviceSize.height,
+                width: deviceSize.width,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Flexible(
+                      child: Container(
+                        margin: EdgeInsets.only(bottom: 20.0),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 8.0, horizontal: 94),
+                        child: Text(
+                          'Fantastic',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 35.0,
+                            fontWeight: FontWeight.normal,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Flexible(
-                    flex: deviceSize.width > 600 ? 2 : 1,
-                    child: AnimatedContainer(
-                      duration: Duration(milliseconds: 300),
-                      curve: Curves.easeIn,
-                      height: _formType == FormType.register ? 320 : 260,
-                      // height: _heightAnimation.value.height,
-                      constraints: BoxConstraints(
-                          minHeight:
-                              _formType == FormType.register ? 320 : 260),
-                      width: deviceSize.width * 0.75,
-                      padding: EdgeInsets.all(16.0),
-                      child: Form(
-                        key: formKey,
-                        child: SingleChildScrollView(
-                          child: Column(children: <Widget>[
-                            TextFormField(
-                              decoration: InputDecoration(labelText: 'Email'),
-                              style: TextStyle(color: Colors.black),
-                              textCapitalization: TextCapitalization.none,
-                              validator: (value) => value.isEmpty
-                                  ? 'email can \'t be empty'
-                                  : null,
-                              onSaved: (value) => _email = value.trim(),
-                            ),
-                            TextFormField(
-                              decoration: InputDecoration(
-                                labelText: 'Password',
+                    Flexible(
+                      flex: deviceSize.width > 600 ? 2 : 1,
+                      child: AnimatedContainer(
+                        duration: Duration(milliseconds: 300),
+                        curve: Curves.easeIn,
+                        height: _formType == FormType.register ? 320 : 260,
+                        // height: _heightAnimation.value.height,
+                        constraints: BoxConstraints(
+                            minHeight:
+                                _formType == FormType.register ? 320 : 260),
+                        width: deviceSize.width * 0.75,
+                        padding: EdgeInsets.all(16.0),
+                        child: Form(
+                          key: formKey,
+                          child: SingleChildScrollView(
+                            child: Column(children: <Widget>[
+                              TextFormField(
+                                decoration: InputDecoration(labelText: 'Email'),
+                                style: TextStyle(color: Colors.black),
+                                textCapitalization: TextCapitalization.none,
+                                validator: (value) => value.isEmpty
+                                    ? 'email can \'t be empty'
+                                    : null,
+                                onSaved: (value) => _email = value.trim(),
                               ),
-                              obscureText: true,
-                              style: TextStyle(color: Colors.black),
-                              controller: _passwordController,
-                              validator: (value) => value.isEmpty
-                                  ? 'password can \'t be empty'
-                                  : null,
-                              onSaved: (value) => _password = value.trim(),
-                              autofocus: false,
-                            ),
-                            AnimatedContainer(
-                              constraints: BoxConstraints(
-                                minHeight:
-                                    _formType == FormType.register ? 60 : 0,
-                                maxHeight:
-                                    _formType == FormType.register ? 120 : 0,
+                              TextFormField(
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                ),
+                                obscureText: true,
+                                style: TextStyle(color: Colors.black),
+                                controller: _passwordController,
+                                validator: (value) => value.isEmpty
+                                    ? 'password can \'t be empty'
+                                    : null,
+                                onSaved: (value) => _password = value.trim(),
+                                autofocus: false,
                               ),
-                              duration: Duration(milliseconds: 300),
-                              curve: Curves.easeIn,
-                              child: FadeTransition(
-                                opacity: _opacityAnimation,
-                                child: SlideTransition(
-                                  position: _slideAnimation,
-                                  child: TextFormField(
-                                    enabled: _formType == FormType.register,
-                                    decoration: InputDecoration(
-                                        labelText: 'Confirm Password'),
-                                    style: TextStyle(color: Colors.black),
-                                    obscureText: true,
-                                    validator: _formType == FormType.register
-                                        ? (value) {
-                                            if (value !=
-                                                _passwordController.text) {
-                                              return 'Passwords do not match!';
+                              AnimatedContainer(
+                                constraints: BoxConstraints(
+                                  minHeight:
+                                      _formType == FormType.register ? 60 : 0,
+                                  maxHeight:
+                                      _formType == FormType.register ? 120 : 0,
+                                ),
+                                duration: Duration(milliseconds: 300),
+                                curve: Curves.easeIn,
+                                child: FadeTransition(
+                                  opacity: _opacityAnimation,
+                                  child: SlideTransition(
+                                    position: _slideAnimation,
+                                    child: TextFormField(
+                                      enabled: _formType == FormType.register,
+                                      decoration: InputDecoration(
+                                          labelText: 'Confirm Password'),
+                                      style: TextStyle(color: Colors.black),
+                                      obscureText: true,
+                                      validator: _formType == FormType.register
+                                          ? (value) {
+                                              if (value !=
+                                                  _passwordController.text) {
+                                                return 'Passwords do not match!';
+                                              }
                                             }
-                                          }
-                                        : null,
+                                          : null,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            SizedBox(
-                              height: 20,
-                            ),
-                            if (_isLoading)
-                              CircularProgressIndicator()
-                            else
-                              RaisedButton(
-                                child: Text(_formType == FormType.login
-                                    ? 'LOGIN'
-                                    : 'SIGN UP'),
-                                onPressed: validateAndSubmit,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 30.0, vertical: 8.0),
-                                color: Theme.of(context).primaryColor,
-                                textColor: Theme.of(context)
-                                    .primaryTextTheme
-                                    .button
-                                    .color,
+                              SizedBox(
+                                height: 20,
                               ),
-                            FlatButton(
-                              child: Text(
-                                  '${_formType == FormType.login ? 'SIGNUP' : 'LOGIN'} INSTEAD'),
-                              onPressed: _switchAuthMode,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 30.0, vertical: 4),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                              textColor: Theme.of(context).primaryColor,
-                            ),
-                          ]),
+                              if (_isLoading)
+                                CircularProgressIndicator()
+                              else
+                                RaisedButton(
+                                  child: Text(_formType == FormType.login
+                                      ? 'LOGIN'
+                                      : 'SIGN UP'),
+                                  onPressed: validateAndSubmit,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 30.0, vertical: 8.0),
+                                  color: Theme.of(context).primaryColor,
+                                  textColor: Theme.of(context)
+                                      .primaryTextTheme
+                                      .button
+                                      .color,
+                                ),
+                              FlatButton(
+                                child: Text(
+                                    '${_formType == FormType.login ? 'SIGNUP' : 'LOGIN'} INSTEAD'),
+                                onPressed: _switchAuthMode,
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 30.0, vertical: 4),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                textColor: Theme.of(context).primaryColor,
+                              ),
+                            ]),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),

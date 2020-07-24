@@ -157,10 +157,22 @@ class Comment extends StatelessWidget {
                   ),
                 ),
               ),
-              leading: CircleAvatar(
-                backgroundImage: NetworkImage(
-                    'https://pbs.twimg.com/media/EYFEmM0UMAAMVaV?format=jpg&name=240x240'), //CachedNetworkImageProvider(url),
+              leading:  CachedNetworkImage(
+              imageUrl: url == null ?'' : url,
+              imageBuilder: (context, imageProvider) => Container(
+                height: 45.0,
+                width: 45.0,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      fit: BoxFit.cover,
+                      image: imageProvider,
+                    ),
+                ),
               ),
+              // placeholder: (context, url) => CircleAvatar(backgroundImage: AssetImage('assets/sharukhKhan.jpg'),),
+              errorWidget: (context, url, error) => Icon(Icons.account_circle,size: 45,color: Colors.grey,),
+            ),
               subtitle: Text(
                 tAgo.format(timestamp.toDate()),
                 style: TextStyle(color: Colors.grey),

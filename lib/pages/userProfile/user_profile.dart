@@ -1,11 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:flutter/material.dart';
+
+import './edit_profile_page.dart';
 import '../../widgets/post_tile_widget.dart';
 import '../../widgets/post_widget.dart';
 import '../../models/user.dart';
-import './edit_profile_page.dart';
 import '../../widgets/progress_indicator.dart';
 import '../../home_page.dart';
 
@@ -46,7 +46,8 @@ class _ProfilePageState extends State<ProfilePage> {
         .document(widget.userProfileId)
         .collection('userFollowing')
         .getDocuments();
-     if(mounted) setState(() {
+    if (mounted)
+      setState(() {
         countTotalFollowings = querySnapshot.documents.length;
       });
   }
@@ -56,7 +57,8 @@ class _ProfilePageState extends State<ProfilePage> {
         .document(widget.userProfileId)
         .collection('userFollowers')
         .getDocuments();
-     if(mounted) setState(() {
+    if (mounted)
+      setState(() {
         countTotalFollowers = querySnapshot.documents.length;
       });
   }
@@ -66,7 +68,8 @@ class _ProfilePageState extends State<ProfilePage> {
         .document(widget.userProfileId)
         .collection('userFriends')
         .getDocuments();
-     if(mounted) setState(() {
+    if (mounted)
+      setState(() {
         countTotalFriends = querySnapshot.documents.length;
       });
   }
@@ -95,7 +98,6 @@ class _ProfilePageState extends State<ProfilePage> {
       });
   }
 
-
   createProfileTopView() {
     return StreamBuilder(
       stream: usersReference.document(widget.userProfileId).snapshots(),
@@ -106,53 +108,30 @@ class _ProfilePageState extends State<ProfilePage> {
         User user = User.fromDocument(dataSnapshot.data);
         return Column(children: <Widget>[
           Container(
-            child: Stack(
-              overflow: Overflow.visible,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Container(
-                        height: 200.0,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            fit: BoxFit.fill,
-                            image: NetworkImage(
-                                'https://pbs.twimg.com/profile_banners/132385468/1590425639/1500x500'),
-                          ),
-                        ),
-                      ),
+            child: CachedNetworkImage(
+              imageUrl: user.url == null ?'' : user.url,
+              imageBuilder: (context, imageProvider) => Container(
+                height: 150,
+                width: 150,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      fit: BoxFit.cover,
+                      image: imageProvider,
                     ),
-                  ],
-                ),
-                Positioned(
-                  top: 130.0,
-                  child: Container(
-                    height: 120,
-                    width: 120,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: DecorationImage(
-                          fit: BoxFit.cover,
-                          image: NetworkImage(
-                              'https://pbs.twimg.com/profile_images/1134090740592627712/0Fp-U5-p_400x400.png'),
-                        ),
-                        border: Border.all(color: Colors.white, width: 5.0)),
-                  ),
-                ),
-              ],
+                    border: Border.all(
+                        color: Theme.of(context).primaryColor, width: 5.0)),
+              ),
+              placeholder: (context, url) => CircleAvatar(backgroundColor: Colors.grey,radius: 75.0,),
+              errorWidget: (context, url, error) => Icon(Icons.account_circle, size: 200,color: Colors.grey,),
             ),
-          ),
-          SizedBox(
-            height: 30,
           ),
           Padding(
             padding: const EdgeInsets.all(17.0),
             child: Column(
               children: <Widget>[
                 Container(
-                  alignment: Alignment.centerLeft,
-                  padding: EdgeInsets.only(top: 8.0),
+                  alignment: Alignment.center,
                   child: Text(user.username,
                       style: TextStyle(
                         fontSize: 14.0,
@@ -160,7 +139,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       )),
                 ),
                 Container(
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.center,
                   padding: EdgeInsets.only(top: 8.0),
                   child: Text(
                     user.profileName,
@@ -177,8 +156,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   alignment: Alignment.centerLeft,
                   padding: EdgeInsets.only(top: 5.0),
                   child: Text(
-                    user.bio,
-                    style: TextStyle(fontSize: 14.0, color: Colors.black87),
+                    user.bio == null ? '' : user.bio,
+                    style: TextStyle(color: Colors.black87),
                   ),
                 ),
                 SizedBox(
@@ -242,7 +221,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } else if (friends) {
       return createButtonTitleAndFunctionForFriend(
         title: 'Friends',
-        performFunctionForFriend:() => _showWarningDialogForFriend(context),
+        performFunctionForFriend: () => _showWarningDialogForFriend(context),
       );
     } else if (!friends) {
       return createButtonTitleAndFunctionForFriend(
@@ -264,8 +243,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     'Un Friend',
                     style: TextStyle(color: Theme.of(context).primaryColor),
                   ),
-                  onPressed: ()  async{
-                   await  controlUnfriendUser();
+                  onPressed: () async {
+                    await controlUnfriendUser();
                     Navigator.pop(context);
                   }),
               FlatButton(
@@ -280,7 +259,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
   }
 
-  controlUnfriendUser() async{
+  controlUnfriendUser() async {
     setState(() {
       friends = false;
     });
@@ -315,10 +294,10 @@ class _ProfilePageState extends State<ProfilePage> {
         document.reference.delete();
       }
     });
-     await getAllFriends();
+    await getAllFriends();
   }
 
-  controlAddFriendUser() async{
+  controlAddFriendUser() async {
     setState(() {
       friends = true;
     });
@@ -347,7 +326,7 @@ class _ProfilePageState extends State<ProfilePage> {
       'userProfileImg': currentUser.url,
       'userId': currentOnlineUserId,
     });
-   await getAllFriends();
+    await getAllFriends();
   }
 
   createFollowButton() {
@@ -357,19 +336,17 @@ class _ProfilePageState extends State<ProfilePage> {
     } else if (following) {
       return createButtonTitleAndFunction(
         title: 'Following',
-      
-       performFunction: () {
-       showWarningDialog(context);
-          },
+        performFunction: () {
+          showWarningDialog(context);
+        },
       );
     } else if (!following) {
       return createButtonTitleAndFunction(
         title: 'Follow',
-         performFunction: () async{
-       await controlFollowUser();
-          },
+        performFunction: () async {
+          await controlFollowUser();
+        },
       );
-       
     }
     return SizedBox();
   }
@@ -387,7 +364,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: TextStyle(color: Theme.of(context).primaryColor),
                   ),
                   onPressed: () async {
-                   await controlUnfollowUser();// await controlUnfollowUser();
+                    await controlUnfollowUser(); // await controlUnfollowUser();
                     Navigator.pop(context);
                   }),
               FlatButton(
@@ -436,7 +413,7 @@ class _ProfilePageState extends State<ProfilePage> {
         document.reference.delete();
       }
     });
-     await getAllFollowers();
+    await getAllFollowers();
   }
 
   controlFollowUser() async {
@@ -528,7 +505,7 @@ class _ProfilePageState extends State<ProfilePage> {
         context,
         MaterialPageRoute(
             builder: (context) =>
-                EditProfilePage(currentOnlineUserId: currentOnlineUserId)));
+                SettingScreen())); //  EditProfilePage(currentOnlineUserId: currentOnlineUserId)
   }
 
   getEditButton() {
@@ -560,6 +537,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       body: ListView(
         children: <Widget>[
+          SizedBox(height: 2.5,),
           createProfileTopView(),
           Divider(),
           createListAndGridPostOrientation(),

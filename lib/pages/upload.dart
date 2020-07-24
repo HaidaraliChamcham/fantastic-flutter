@@ -1,7 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
-
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -252,29 +250,6 @@ class _UploadImageState extends State<UploadImage>
           Padding(
             padding: EdgeInsets.only(top: 12.0),
           ),
-          // ListTile(
-          //   leading: CircleAvatar(
-          //     backgroundColor: Colors
-          //         .green, // backgroundImage: CachedNetworkImageProvider(widget.gCurrentUser.url),
-          //   ),
-          //   title: Container(
-          //     width: 250.0,
-          //     child: TextField(
-          //       style: TextStyle(color: Colors.white),
-          //       controller: captionTextEditingController,
-          //       keyboardType: TextInputType.multiline,
-          //       decoration: InputDecoration(
-          //         hintText: 'say something about image',
-          //         hintStyle: TextStyle(color: Colors.grey),
-          //         enabledBorder: UnderlineInputBorder(
-          //           borderSide: BorderSide(color: Colors.grey[600]),
-          //         ),
-          //         focusedBorder: UnderlineInputBorder(
-          //             borderSide: BorderSide(color: Colors.white38)),
-          //       ),
-          //     ),
-          //   ),
-          // )
         ],
       ),
     );

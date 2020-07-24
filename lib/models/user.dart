@@ -5,7 +5,7 @@ class User with ChangeNotifier{
   final String id;
   final String profileName;
   final String username;
-         String url;
+  final String url;
   final String coverImage;
   final String email;
   final String bio;

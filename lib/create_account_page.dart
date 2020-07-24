@@ -1,7 +1,6 @@
 import 'dart:async';
-
-import 'package:fasenate/widgets/header_widget.dart';
 import 'package:flutter/material.dart';
+import './widgets/header_widget.dart';
 import './utils/lowercase_formater.dart';
 
 
@@ -65,7 +64,6 @@ class _CreateAccountState extends State<CreateAccount> {
                           TextFormField(
                             decoration: InputDecoration(labelText: 'Full Name'),
                             textCapitalization: TextCapitalization.none,
-               
                             validator: (val) {
                               if (val.length < 3) {
                                 return "Your name is to short.";
@@ -106,7 +104,7 @@ class _CreateAccountState extends State<CreateAccount> {
                   child: Text(
                     'Procced',
                   ),
-                  onPressed: submitForm,
+                  onPressed:(){ submitForm();},
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
