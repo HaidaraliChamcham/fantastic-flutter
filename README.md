@@ -1,5 +1,6 @@
 # fantastic
 
+git remote set-url origin https://github.com/USERNAME/REPOSITORY.git to change the set url of git repository
 A new Flutter application.
 
 ## Getting Started
