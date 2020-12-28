@@ -42,7 +42,6 @@ dependencies:
   firebase_messaging: ^6.0.16
   animator: ^2.0.1
   fluttertoast: ^7.0.1
-  video_player: ^0.10.11+2
   shared_preferences: ^0.5.8
   flutter_svg:
 
